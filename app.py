@@ -36,12 +36,18 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
             filename TEXT,
             file_hash TEXT,
             signature TEXT,
             timestamp TEXT
         )
     ''')
+    # Add user_id column if upgrading from old schema
+    try:
+        c.execute("ALTER TABLE audit_logs ADD COLUMN user_id INTEGER")
+    except Exception:
+        pass
     # System Keys
     c.execute('''
         CREATE TABLE IF NOT EXISTS system_keys (
@@ -128,16 +134,44 @@ def login():
     
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT password_hash FROM users WHERE username=?", (username,))
+    c.execute("SELECT id, password_hash FROM users WHERE username=?", (username,))
     row = c.fetchone()
     conn.close()
     
-    if row and check_password_hash(row[0], password):
+    if row and check_password_hash(row[1], password):
         session['logged_in'] = True
         session['username'] = username
+        session['user_id'] = row[0]
         return jsonify({"success": True})
     
     return jsonify({"success": False, "error": "Invalid credentials"}), 401
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
+    if not username or not password:
+        return jsonify({'success': False, 'error': 'Username and password are required.'}), 400
+    if len(username) < 3:
+        return jsonify({'success': False, 'error': 'Username must be at least 3 characters.'}), 400
+    if len(password) < 6:
+        return jsonify({'success': False, 'error': 'Password must be at least 6 characters.'}), 400
+    hashed = generate_password_hash(password)
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, hashed))
+        conn.commit()
+        user_id = c.lastrowid
+        conn.close()
+        session['logged_in'] = True
+        session['username'] = username
+        session['user_id'] = user_id
+        return jsonify({'success': True})
+    except Exception:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Username already exists.'}), 409
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
@@ -175,11 +209,12 @@ def sign_file():
     signature_b64 = base64.b64encode(signature).decode('utf-8')
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Save to DB
+    # Save to DB (linked to current user)
+    user_id = session.get('user_id')
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO audit_logs (filename, file_hash, signature, timestamp) VALUES (?, ?, ?, ?)",
-              (filename, file_hash, signature_b64, timestamp))
+    c.execute("INSERT INTO audit_logs (user_id, filename, file_hash, signature, timestamp) VALUES (?, ?, ?, ?, ?)",
+              (user_id, filename, file_hash, signature_b64, timestamp))
     conn.commit()
     conn.close()
     
@@ -355,9 +390,15 @@ def verify_qr():
 
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
+    if not is_logged_in():
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = session.get('user_id')
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT id, filename, file_hash, signature, timestamp FROM audit_logs ORDER BY id DESC LIMIT 15")
+    c.execute(
+        "SELECT id, filename, file_hash, signature, timestamp FROM audit_logs WHERE user_id=? ORDER BY id DESC LIMIT 50",
+        (user_id,)
+    )
     rows = c.fetchall()
     conn.close()
     
@@ -371,6 +412,29 @@ def get_logs():
             'timestamp': r[4]
         })
     return jsonify(logs)
+
+@app.route('/api/verify-qr-data', methods=['POST'])
+def verify_qr_data():
+    """Verify a QR payload decoded directly by the browser camera (no file upload needed)."""
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    try:
+        file_hash = data.get('hash', '')
+        signature_b64 = data.get('signature', '')
+        if not file_hash or not signature_b64:
+            return jsonify({'error': 'Missing hash or signature in QR payload'}), 400
+        signature = base64.b64decode(signature_b64)
+        PUBLIC_KEY.verify(
+            signature,
+            bytes.fromhex(file_hash),
+            ec.ECDSA(utils.Prehashed(hashes.SHA256()))
+        )
+        return jsonify({'valid': True, 'payload': data})
+    except InvalidSignature:
+        return jsonify({'valid': False, 'payload': data})
+    except Exception as e:
+        return jsonify({'error': f'Invalid QR data: {str(e)}'}), 400
 
 if __name__ == '__main__':
     init_db()
