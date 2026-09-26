@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
 
     /* ─────────────────────────────────────────
@@ -717,21 +718,42 @@
                     <div class="panel-title">Verify Cryptographic Seal</div>
                 </div>
 
-                <form id="qrForm" novalidate>
-                    <div class="dropzone" id="qrDrop">
-                        <input type="file" id="qrFile" accept="image/*,.pdf" required>
-                        <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
-                        <div class="dropzone-text">Drop a QR image or stamped PDF<br><span style="font-size:10px;color:var(--txt-3);">PNG / JPG / PDF — all formats supported</span></div>
-                        <div class="dropzone-filename" id="qrFilename"></div>
-                    </div>
+                <!-- Tab switcher: Upload / Camera -->
+                <div style="display:flex;gap:var(--s2);margin-bottom:var(--s5);">
+                    <button class="btn btn-secondary" id="qrModeUpload" onclick="setQrMode('upload')" style="flex:1;font-size:12px;">Upload File</button>
+                    <button class="btn btn-secondary" id="qrModeCamera" onclick="setQrMode('camera')" style="flex:1;font-size:12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        Camera Scan
+                    </button>
+                </div>
 
-                    <div class="loader" id="qrLoader">
-                        <div class="loader-ring"></div>
-                        <span class="loader-text">Decoding seal...</span>
-                    </div>
+                <!-- Upload mode -->
+                <div id="qrUploadMode">
+                    <form id="qrForm" novalidate>
+                        <div class="dropzone" id="qrDrop">
+                            <input type="file" id="qrFile" accept="image/*,.pdf" required>
+                            <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+                            <div class="dropzone-text">Drop a QR image or stamped PDF<br><span style="font-size:10px;color:var(--txt-3);">PNG / JPG / PDF — all formats supported</span></div>
+                            <div class="dropzone-filename" id="qrFilename"></div>
+                        </div>
+                        <div class="loader" id="qrLoader">
+                            <div class="loader-ring"></div>
+                            <span class="loader-text">Decoding seal...</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full" id="qrSubmit">Scan &amp; Verify</button>
+                    </form>
+                </div>
 
-                    <button type="submit" class="btn btn-primary btn-full" id="qrSubmit">Scan &amp; Verify</button>
-                </form>
+                <!-- Camera mode -->
+                <div id="qrCameraMode" style="display:none;">
+                    <div class="camera-wrap" id="cameraWrap">
+                        <video id="camVideo" autoplay playsinline muted></video>
+                        <canvas id="camCanvas"></canvas>
+                        <div class="camera-crosshair"></div>
+                    </div>
+                    <div id="qrCamStatus">Point camera at a SAKK QR code...</div>
+                    <button class="btn btn-secondary btn-full" onclick="stopCamera()">Stop Camera</button>
+                </div>
 
                 <div class="result" id="qrResult">
                     <div class="alert" id="qrAlert"></div>
@@ -754,8 +776,8 @@
         <div class="audit-panel" id="audit">
             <div class="audit-toolbar">
                 <div>
-                    <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Audit Trail</div>
-                    <div style="font-size:11px;color:var(--txt-3);">SQLite — last 15 records</div>
+                    <div style="font-size:13px;font-weight:600;margin-bottom:2px;">My Audit Trail</div>
+                    <div style="font-size:11px;color:var(--txt-3);">Your operations — last 50 records</div>
                 </div>
                 <button class="btn btn-secondary" onclick="loadLogs()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
@@ -784,30 +806,70 @@
 
 
 <!-- ═══════════════════════════════════════
-     MODAL (Auth)
+     MODAL (Auth — Login / Register)
 ═══════════════════════════════════════ -->
+<style>
+.auth-tabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:var(--s6); }
+.auth-tab  { flex:1; padding:var(--s3) 0; font-size:13px; font-weight:500; color:var(--txt-3); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:color var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+.auth-tab.active { color:var(--txt); border-bottom-color:var(--accent); }
+.auth-panel { display:none; } .auth-panel.active { display:block; }
+.camera-wrap { position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:var(--r-md); overflow:hidden; margin-bottom:var(--s4); }
+.camera-wrap video { width:100%; height:100%; object-fit:cover; }
+.camera-wrap canvas { display:none; }
+.camera-crosshair { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.camera-crosshair::before { content:''; width:56%; aspect-ratio:1; border:2px solid rgba(255,255,255,.5); border-radius:6px; }
+#qrCamStatus { font-size:11px; color:var(--txt-3); text-align:center; margin-bottom:var(--s3); }
+</style>
 <div class="modal-backdrop" id="authModal">
     <div class="modal">
         <div class="modal-header">
             <button class="modal-close" onclick="closeModal()" aria-label="Close">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-            <div class="modal-title">Administrator Sign In</div>
-            <div class="modal-sub">Access is restricted to authorized certificate issuers.</div>
+            <div class="modal-title">SAKK Account</div>
+            <div class="modal-sub">Sign in or create a new account to issue certificates.</div>
         </div>
 
-        <form id="authForm" novalidate>
-            <div class="field">
-                <label>Operator ID</label>
-                <input type="text" id="authUser" value="admin" required dir="ltr">
-            </div>
-            <div class="field">
-                <label>Access Code</label>
-                <input type="password" id="authPass" value="admin123" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-full">Authenticate</button>
-            <div class="modal-error" id="authError">Invalid credentials. Access denied.</div>
-        </form>
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">Sign In</button>
+            <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">Create Account</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div class="auth-panel active" id="panelLogin">
+            <form id="authForm" novalidate>
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" id="authUser" autocomplete="username" required dir="ltr">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" id="authPass" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+                <div class="modal-error" id="authError">Invalid credentials. Access denied.</div>
+            </form>
+        </div>
+
+        <!-- REGISTER -->
+        <div class="auth-panel" id="panelRegister">
+            <form id="regForm" novalidate>
+                <div class="field">
+                    <label>Username <span style="color:var(--txt-3);font-size:10px;">(min. 3 characters)</span></label>
+                    <input type="text" id="regUser" autocomplete="username" required dir="ltr">
+                </div>
+                <div class="field">
+                    <label>Password <span style="color:var(--txt-3);font-size:10px;">(min. 6 characters)</span></label>
+                    <input type="password" id="regPass" autocomplete="new-password" required>
+                </div>
+                <div class="field">
+                    <label>Confirm Password</label>
+                    <input type="password" id="regPass2" autocomplete="new-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+                <div class="modal-error" id="regError"></div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -978,13 +1040,21 @@
         } catch (_) {}
     }
 
-    window.openModal  = () => $('authModal').classList.add('open');
-    window.closeModal = () => { $('authModal').classList.remove('open'); $('authError').style.display = 'none'; };
+    window.openModal  = (tab) => { $('authModal').classList.add('open'); if(tab) switchTab(tab); };
+    window.closeModal = () => { $('authModal').classList.remove('open'); $('authError').style.display = 'none'; $('regError').style.display = 'none'; };
+
+    window.switchTab = (tab) => {
+        $('tabLogin').classList.toggle('active', tab==='login');
+        $('tabRegister').classList.toggle('active', tab==='register');
+        $('panelLogin').classList.toggle('active', tab==='login');
+        $('panelRegister').classList.toggle('active', tab==='register');
+    };
 
     $('authModal').addEventListener('click', e => {
         if (e.target === $('authModal')) closeModal();
     });
 
+    /* --- Login --- */
     $('authForm').addEventListener('submit', async e => {
         e.preventDefault();
         const res = await fetch('/api/login', {
@@ -992,8 +1062,26 @@
             body: JSON.stringify({ username: $('authUser').value, password: $('authPass').value })
         });
         const d = await res.json();
-        if (d.success) { closeModal(); checkAuth(); }
-        else           { $('authError').style.display = 'block'; }
+        if (d.success) { closeModal(); checkAuth(); loadLogs(); }
+        else { $('authError').style.display = 'block'; }
+    });
+
+    /* --- Register --- */
+    $('regForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const user  = $('regUser').value.trim();
+        const pass  = $('regPass').value;
+        const pass2 = $('regPass2').value;
+        const errEl = $('regError');
+        errEl.style.display = 'none';
+        if (pass !== pass2) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
+        const res = await fetch('/api/register', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username: user, password: pass })
+        });
+        const d = await res.json();
+        if (d.success) { closeModal(); checkAuth(); loadLogs(); }
+        else { errEl.textContent = d.error || 'Registration failed.'; errEl.style.display = 'block'; }
     });
 
     window.doLogout = async () => {
@@ -1128,8 +1216,6 @@
     /* ── audit log ──────────────────────── */
     window.loadLogs = async function () {
         const tbody = $('auditBody');
-
-        // shimmer rows
         tbody.innerHTML = [1,2,3].map(() => `
             <tr class="tbl-shimmer">
                 <td><div class="shimmer" style="width:24px;"></div></td>
@@ -1138,12 +1224,16 @@
                 <td><div class="shimmer" style="width:140px;"></div></td>
                 <td><div class="shimmer" style="width:110px;"></div></td>
             </tr>`).join('');
-
         try {
-            const logs = await (await fetch('/api/logs')).json();
+            const res  = await fetch('/api/logs');
+            if (res.status === 401) {
+                tbody.innerHTML = `<tr><td colspan="5"><div class="tbl-empty">Sign in to view your audit trail.</div></td></tr>`;
+                return;
+            }
+            const logs = await res.json();
             tbody.innerHTML = '';
             if (!logs.length) {
-                tbody.innerHTML = `<tr><td colspan="5"><div class="tbl-empty">No records yet.</div></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5"><div class="tbl-empty">No records yet. Issue your first certificate above.</div></td></tr>`;
                 return;
             }
             logs.forEach((log, i) => {
@@ -1162,6 +1252,87 @@
             tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger);font-size:12px;padding:var(--s7);">Failed to load records.</td></tr>`;
         }
     };
+
+    /* ── camera QR scan ─────────────────── */
+    let camStream = null, camAnimFrame = null;
+
+    window.setQrMode = function(mode) {
+        $('qrUploadMode').style.display = mode === 'upload' ? '' : 'none';
+        $('qrCameraMode').style.display = mode === 'camera' ? '' : 'none';
+        $('qrModeUpload').style.opacity = mode === 'upload' ? '1' : '.6';
+        $('qrModeCamera').style.opacity = mode === 'camera' ? '1' : '.6';
+        if (mode === 'camera') startCamera();
+        else stopCamera();
+    };
+
+    async function startCamera() {
+        hideResult('qrResult');
+        $('qrCamStatus').textContent = 'Requesting camera access...';
+        try {
+            camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const video = $('camVideo');
+            video.srcObject = camStream;
+            video.play();
+            video.onloadedmetadata = () => scanFrame();
+            $('qrCamStatus').textContent = 'Point camera at a SAKK QR code...';
+        } catch (err) {
+            $('qrCamStatus').textContent = 'Camera access denied. Use file upload instead.';
+        }
+    }
+
+    window.stopCamera = function() {
+        if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+        if (camAnimFrame) { cancelAnimationFrame(camAnimFrame); camAnimFrame = null; }
+        setQrMode('upload');
+    };
+
+    function scanFrame() {
+        const video  = $('camVideo');
+        const canvas = $('camCanvas');
+        if (!camStream || video.readyState < 2) { camAnimFrame = requestAnimationFrame(scanFrame); return; }
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        if (typeof jsQR !== 'undefined') {
+            const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+            if (qr) {
+                stopCamera();
+                handleQrPayload(qr.data);
+                return;
+            }
+        }
+        camAnimFrame = requestAnimationFrame(scanFrame);
+    }
+
+    async function handleQrPayload(rawData) {
+        hideResult('qrResult');
+        try {
+            const payload = JSON.parse(rawData);
+            const res = await fetch('/api/verify-qr-data', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const d = await res.json();
+            if (d.error) { setAlert('qrAlert', 'danger', d.error); }
+            else if (d.valid) {
+                setAlert('qrAlert', 'success', 'Seal is authentic. Cryptographic signature verified.');
+                $('qrFile2').textContent = d.payload.filename;
+                $('qrTs').textContent    = d.payload.timestamp;
+                $('qrHash2').textContent = d.payload.hash;
+            } else {
+                setAlert('qrAlert', 'danger', 'Seal signature is invalid. Document or seal may be forged.');
+                $('qrFile2').textContent = d.payload?.filename  || '—';
+                $('qrTs').textContent    = d.payload?.timestamp || '—';
+                $('qrHash2').textContent = d.payload?.hash      || '—';
+            }
+            showResult('qrResult');
+        } catch(_) {
+            setAlert('qrAlert', 'danger', 'Invalid QR code — not a SAKK seal.');
+            showResult('qrResult');
+        }
+    }
 
     function esc(str) {
         const d = document.createElement('div');
