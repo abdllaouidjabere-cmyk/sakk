@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAKK — Document Integrity Platform</title>
+    <meta name="description" content="SAKK: Zero-retention cryptographic document certification using ECDSA SECP256R1. PDPL-compliant audit infrastructure.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <style>
+
+    /* ─────────────────────────────────────────
+       TOKENS  (8pt grid, Slate palette)
+    ───────────────────────────────────────── */
+    :root {
+        /* spacing scale — multiples of 4px */
+        --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+        --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px;
+        --s9: 48px; --s10: 64px; --s11: 80px;
+
+        /* radii */
+        --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-xl: 14px;
+
+        /* type */
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+
+        /* animation */
+        --ease: cubic-bezier(.4,0,.2,1);
+        --dur: 180ms;
+    }
+
+    /* DARK theme (default) */
+    [data-theme="dark"] {
+        --bg:       #09090b;
+        --bg-sub:   #111113;
+        --surface:  #18181b;
+        --surface-2:#1f1f23;
+        --border:   #27272a;
+        --border-2: #3f3f46;
+        --txt:      #fafafa;
+        --txt-2:    #a1a1aa;
+        --txt-3:    #71717a;
+        --accent:   #3b82f6;
+        --accent-bg:#1d3457;
+        --success:  #22c55e;
+        --success-bg:#052e16;
+        --danger:   #ef4444;
+        --danger-bg:#450a0a;
+        --warn:     #f59e0b;
+        --shadow:   0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.4);
+        --shadow-lg:0 4px 16px rgba(0,0,0,.5);
+    }
+
+    /* LIGHT theme */
+    [data-theme="light"] {
+        --bg:       #fafafa;
+        --bg-sub:   #f4f4f5;
+        --surface:  #ffffff;
+        --surface-2:#f4f4f5;
+        --border:   #e4e4e7;
+        --border-2: #d4d4d8;
+        --txt:      #09090b;
+        --txt-2:    #52525b;
+        --txt-3:    #a1a1aa;
+        --accent:   #2563eb;
+        --accent-bg:#eff6ff;
+        --success:  #16a34a;
+        --success-bg:#f0fdf4;
+        --danger:   #dc2626;
+        --danger-bg:#fef2f2;
+        --warn:     #d97706;
+        --shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+        --shadow-lg:0 4px 16px rgba(0,0,0,.08);
+    }
+
+    /* ─────────────────────────────────────────
+       RESET
+    ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+        font-family: var(--font-sans);
+        background: var(--bg);
+        color: var(--txt);
+        min-height: 100vh;
+        line-height: 1.5;
+        transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+        -webkit-font-smoothing: antialiased;
+    }
+    img, svg { display: block; max-width: 100%; }
+    button, input { font-family: inherit; }
+    a { color: var(--accent); text-decoration: none; }
+
+    /* ─────────────────────────────────────────
+       TOPBAR
+    ───────────────────────────────────────── */
+    .topbar {
+        height: 48px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 var(--s7);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        position: sticky; top: 0; z-index: 100;
+        transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    }
+
+    .topbar-brand {
+        display: flex; align-items: center; gap: var(--s3);
+        font-size: 15px; font-weight: 700; letter-spacing: .04em;
+        color: var(--txt); text-decoration: none;
+    }
+    .topbar-brand .brand-mark {
+        width: 26px; height: 26px; border-radius: var(--r-sm);
+        background: var(--accent); display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 800; color: #fff; letter-spacing: 0;
+        flex-shrink: 0;
+    }
+
+    .topbar-right { display: flex; align-items: center; gap: var(--s3); }
+
+    /* theme switch */
+    .switch { position: relative; width: 40px; height: 22px; cursor: pointer; }
+    .switch input { opacity: 0; position: absolute; width: 0; height: 0; }
+    .switch-track {
+        position: absolute; inset: 0; border-radius: 11px;
+        background: var(--border-2); border: 1px solid var(--border);
+        transition: background var(--dur) var(--ease);
+    }
+    .switch input:checked + .switch-track { background: var(--accent); border-color: var(--accent); }
+    .switch-thumb {
+        position: absolute; top: 3px; left: 3px;
+        width: 14px; height: 14px; border-radius: 50%;
+        background: #fff;
+        transition: transform var(--dur) var(--ease);
+        pointer-events: none;
+    }
+    .switch input:checked ~ .switch-thumb { transform: translateX(18px); }
+
+    .topbar-user {
+        display: none; align-items: center; gap: var(--s2);
+        font-size: 12px; color: var(--txt-2); font-weight: 500;
+    }
+    .topbar-user .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+
+    /* ─────────────────────────────────────────
+       BUTTONS
+    ───────────────────────────────────────── */
+    .btn {
+        display: inline-flex; align-items: center; gap: var(--s2);
+        padding: 0 var(--s4); height: 32px;
+        font-size: 12px; font-weight: 600; letter-spacing: .02em;
+        border-radius: var(--r-md); border: 1px solid transparent;
+        cursor: pointer; transition: all var(--dur) var(--ease);
+        white-space: nowrap; user-select: none;
+    }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .btn-primary {
+        background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn-primary:hover { opacity: .9; }
+
+    .btn-secondary {
+        background: var(--surface-2); color: var(--txt-2); border-color: var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--border-2); color: var(--txt); }
+
+    .btn-ghost {
+        background: transparent; color: var(--txt-2); border-color: transparent;
+    }
+    .btn-ghost:hover { background: var(--surface-2); color: var(--txt); }
+
+    .btn-danger {
+        background: transparent; color: var(--danger); border-color: var(--border);
+    }
+    .btn-danger:hover { background: var(--danger-bg); border-color: var(--danger); }
+
+    .btn-success {
+        background: var(--success); color: #fff; border-color: var(--success);
+    }
+    .btn-success:hover { opacity: .9; }
+
+    .btn-lg {
+        height: 40px; padding: 0 var(--s6); font-size: 13px; border-radius: var(--r-lg);
+    }
+    .btn-full { width: 100%; justify-content: center; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+
+    /* ─────────────────────────────────────────
+       HERO / LANDING
+    ───────────────────────────────────────── */
+    .hero {
+        padding: var(--s9) var(--s7) var(--s6);
+        max-width: 640px; margin: 0 auto;
+        text-align: center;
+    }
+    .hero-kicker {
+        display: inline-block;
+        font-size: 11px; font-weight: 600; letter-spacing: .08em;
+        text-transform: uppercase; color: var(--accent);
+        margin-bottom: var(--s5);
+    }
+    .hero-title {
+        font-size: 38px; font-weight: 700; line-height: 1.15;
+        color: var(--txt); letter-spacing: -.02em;
+        margin-bottom: var(--s4);
+    }
+    .hero-desc {
+        font-size: 14px; color: var(--txt-2); line-height: 1.65;
+        margin-bottom: var(--s5);
+    }
+
+    .hero-metrics {
+        display: flex; justify-content: center; gap: var(--s8);
+        margin-bottom: var(--s6);
+        padding: var(--s5) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .metric-val {
+        font-size: 18px; font-weight: 700; color: var(--txt);
+        font-variant-numeric: tabular-nums;
+        font-family: var(--font-mono);
+        display: block; margin-bottom: 2px;
+    }
+    .metric-key { font-size: 11px; color: var(--txt-3); text-transform: uppercase; letter-spacing: .06em; }
+
+    .hero-actions { display: flex; justify-content: center; gap: var(--s3); flex-wrap: wrap; }
+
+    /* ─────────────────────────────────────────
+       WORKSPACE LAYOUT
+    ───────────────────────────────────────── */
+    .workspace {
+        max-width: 1400px; margin: 0 auto;
+        padding: 0 var(--s7) var(--s11);
+    }
+    .workspace-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: var(--s6) 0 var(--s5);
+        border-bottom: 1px solid var(--border); margin-bottom: var(--s7);
+    }
+    .workspace-header h2 { font-size: 13px; font-weight: 600; color: var(--txt-2); letter-spacing: .04em; text-transform: uppercase; }
+
+    .panel-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: var(--s5); margin-bottom: var(--s7);
+    }
+    @media (max-width: 1060px) { .panel-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 660px)  { .panel-grid { grid-template-columns: 1fr; } }
+
+    /* ─────────────────────────────────────────
+       PANEL (card)
+    ───────────────────────────────────────── */
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        padding: var(--s6);
+        box-shadow: var(--shadow);
+        position: relative;
+        transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    .panel:hover { box-shadow: var(--shadow-lg); }
+
+    .panel-header { margin-bottom: var(--s5); }
+    .panel-eyebrow { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--txt-3); margin-bottom: var(--s2); }
+    .panel-title { font-size: 14px; font-weight: 600; color: var(--txt); }
+
+    /* ─────────────────────────────────────────
+       DROP ZONE
+    ───────────────────────────────────────── */
+    .dropzone {
+        position: relative; padding: var(--s8) var(--s5);
+        border: 1px dashed var(--border-2); border-radius: var(--r-lg);
+        text-align: center; cursor: pointer;
+        transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+        margin-bottom: var(--s4);
+    }
+    .dropzone:hover { border-color: var(--accent); background: var(--accent-bg); }
+    .dropzone.dragover { border-color: var(--accent); background: var(--accent-bg); }
+    .dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .dropzone-icon { font-size: 20px; margin-bottom: var(--s2); color: var(--txt-3); }
+    .dropzone-text { font-size: 12px; color: var(--txt-3); }
+    .dropzone-filename { font-size: 11px; font-weight: 600; color: var(--accent); margin-top: var(--s2); min-height: 16px; font-family: var(--font-mono); }
+
+    /* ─────────────────────────────────────────
+       FORM INPUTS
+    ───────────────────────────────────────── */
+    .field { margin-bottom: var(--s4); }
+    .field label { display: block; font-size: 11px; font-weight: 600; color: var(--txt-2); margin-bottom: var(--s2); letter-spacing: .03em; }
+    .field input[type="text"],
+    .field input[type="password"] {
+        width: 100%; padding: 0 var(--s3); height: 34px;
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: var(--r-md); color: var(--txt);
+        font-size: 13px; outline: none;
+        transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input[type="text"][dir="ltr"],
+    .field input[type="password"] { text-align: left; direction: ltr; }
+
+    .field-check { display: flex; align-items: flex-start; gap: var(--s2); margin-bottom: var(--s4); cursor: pointer; }
+    .field-check input { margin-top: 2px; accent-color: var(--accent); }
+    .field-check span { font-size: 12px; color: var(--txt-2); line-height: 1.5; }
+    .field-check .check-warn { color: var(--warn); }
+
+    /* signature paste field */
+    .sig-field {
+        width: 100%; padding: var(--s3); background: var(--bg);
+        border: 1px solid var(--border); border-radius: var(--r-md);
+        color: var(--accent); font-family: var(--font-mono);
+        font-size: 11px; outline: none; resize: vertical; min-height: 52px;
+        transition: border-color var(--dur) var(--ease);
+        margin-bottom: var(--s4);
+        direction: ltr; text-align: left;
+    }
+    .sig-field:focus { border-color: var(--accent); }
+    .sig-field::placeholder { color: var(--txt-3); font-family: var(--font-sans); }
+
+    /* ─────────────────────────────────────────
+       PDF PREVIEW & QR BADGE
+    ───────────────────────────────────────── */
+    .pdf-preview-wrap {
+        display: none; position: relative; margin-bottom: var(--s4);
+        border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden;
+        background: #e2e8f0;
+    }
+    #pdfCanvas { display: block; width: 100%; height: auto; }
+    #qrBadge {
+        position: absolute; top: 12px; left: 12px;
+        width: 88px; height: 88px;
+        border: 2px solid var(--accent);
+        background: rgba(255,255,255,.9);
+        cursor: grab; resize: both; overflow: hidden;
+        min-width: 44px; min-height: 44px;
+        transition: border-color var(--dur) var(--ease);
+    }
+    #qrBadge:active { cursor: grabbing; }
+    #qrBadge::before {
+        content: 'QR';
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 700; color: var(--accent);
+        letter-spacing: .08em; pointer-events: none;
+    }
+    .pdf-hint {
+        display: none; font-size: 11px; color: var(--txt-3); margin-bottom: var(--s4);
+        padding: var(--s2) var(--s3); background: var(--surface-2);
+        border-radius: var(--r-md); border: 1px solid var(--border);
+    }
+
+    /* ─────────────────────────────────────────
+       RESULT AREA
+    ───────────────────────────────────────── */
+    .result { display: none; margin-top: var(--s4); }
+    .result.show { display: block; }
+
+    .alert {
+        display: flex; align-items: flex-start; gap: var(--s3);
+        padding: var(--s3) var(--s4); border-radius: var(--r-md);
+        border: 1px solid transparent; margin-bottom: var(--s4);
+        font-size: 12px; font-weight: 600; line-height: 1.5;
+    }
+    .alert-icon { flex-shrink: 0; margin-top: 1px; }
+    .alert-success { background: var(--success-bg); color: var(--success); border-color: var(--success); }
+    .alert-danger  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger); }
+    .alert-info    { background: var(--accent-bg);  color: var(--accent);  border-color: var(--accent); }
+
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table td {
+        padding: var(--s2) 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px; vertical-align: top;
+    }
+    .data-table td:first-child { color: var(--txt-3); width: 90px; font-weight: 500; }
+    .data-table td:last-child  { color: var(--txt-2); font-family: var(--font-mono); word-break: break-all; }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .qr-output { text-align: center; padding: var(--s4) 0; }
+    .qr-output img { max-width: 130px; border: 1px solid var(--border); border-radius: var(--r-md); }
+    .qr-actions { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s3); flex-wrap: wrap; }
+
+    /* copy row */
+    .copy-row { display: flex; align-items: flex-start; gap: var(--s2); }
+    .copy-row .mono-val {
+        flex: 1; font-family: var(--font-mono); font-size: 11px; color: var(--txt-2);
+        word-break: break-all; line-height: 1.6;
+        background: var(--surface-2); padding: var(--s2) var(--s3);
+        border-radius: var(--r-md); border: 1px solid var(--border);
+    }
+    .btn-copy {
+        flex-shrink: 0; height: 28px; padding: 0 var(--s3);
+        font-size: 11px; font-weight: 600; border-radius: var(--r-md);
+        background: transparent; border: 1px solid var(--border);
+        color: var(--txt-3); cursor: pointer; transition: all var(--dur) var(--ease);
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+    /* ─────────────────────────────────────────
+       LOADER
+    ───────────────────────────────────────── */
+    .loader { display: none; align-items: center; gap: var(--s3); margin-bottom: var(--s3); }
+    .loader.show { display: flex; }
+    .loader-ring {
+        width: 14px; height: 14px;
+        border: 2px solid var(--border-2); border-top-color: var(--accent);
+        border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { font-size: 12px; color: var(--txt-3); }
+
+    /* ─────────────────────────────────────────
+       LOCK OVERLAY
+    ───────────────────────────────────────── */
+    .lock-overlay {
+        position: absolute; inset: 0; border-radius: var(--r-xl);
+        background: color-mix(in srgb, var(--surface) 90%, transparent);
+        backdrop-filter: blur(4px);
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: var(--s4); z-index: 10;
+    }
+    .lock-icon { font-size: 18px; color: var(--txt-3); }
+    .lock-msg  { font-size: 12px; color: var(--txt-3); text-align: center; line-height: 1.5; }
+
+    /* ─────────────────────────────────────────
+       AUDIT TABLE
+    ───────────────────────────────────────── */
+    .audit-panel { margin-bottom: var(--s11); }
+
+    .audit-toolbar {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: var(--s4);
+    }
+
+    .table-wrap { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; overflow-x: auto; }
+    .audit-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .audit-tbl thead { background: var(--surface-2); }
+    .audit-tbl th {
+        padding: var(--s3) var(--s4); text-align: right;
+        font-size: 11px; font-weight: 600; color: var(--txt-3);
+        text-transform: uppercase; letter-spacing: .05em;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+    .audit-tbl td {
+        padding: var(--s3) var(--s4); text-align: right;
+        border-bottom: 1px solid var(--border);
+        color: var(--txt-2); vertical-align: middle;
+    }
+    .audit-tbl tbody tr:last-child td { border-bottom: none; }
+    .audit-tbl tbody tr:hover td { background: var(--surface-2); }
+    .audit-tbl td.mono { font-family: var(--font-mono); color: var(--txt-3); font-size: 11px; }
+    .audit-tbl td.id { color: var(--txt-3); width: 36px; }
+
+    .tbl-empty { text-align: center; padding: var(--s9) var(--s5); color: var(--txt-3); font-size: 12px; }
+    .tbl-shimmer td { padding: var(--s2) var(--s4); }
+    .shimmer {
+        height: 12px; border-radius: var(--r-sm);
+        background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s ease infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ─────────────────────────────────────────
+       MODAL
+    ───────────────────────────────────────── */
+    .modal-backdrop {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.6);
+        backdrop-filter: blur(6px);
+        display: none; align-items: center; justify-content: center;
+        z-index: 500; padding: var(--s5);
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--r-xl); padding: var(--s7);
+        width: 100%; max-width: 360px;
+        box-shadow: var(--shadow-lg);
+        animation: modal-in .18s var(--ease) both;
+    }
+    @keyframes modal-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+    .modal-close {
+        float: left; background: none; border: none;
+        color: var(--txt-3); cursor: pointer; font-size: 16px; line-height: 1;
+        padding: 0;
+        transition: color var(--dur) var(--ease);
+    }
+    .modal-close:hover { color: var(--txt); }
+    .modal-header { margin-bottom: var(--s6); overflow: hidden; }
+    .modal-title  { font-size: 15px; font-weight: 700; color: var(--txt); }
+    .modal-sub    { font-size: 12px; color: var(--txt-3); margin-top: var(--s1); }
+    .modal-error  { display: none; font-size: 12px; color: var(--danger); margin-top: var(--s3); }
+
+    /* ─────────────────────────────────────────
+       MISC UTILITY
+    ───────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: var(--s8) 0; }
+
+    .tag {
+        display: inline-flex; align-items: center; gap: var(--s2);
+        padding: 2px var(--s3); border-radius: var(--r-sm);
+        font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+    }
+    .tag-blue  { background: var(--accent-bg);  color: var(--accent);  }
+    .tag-green { background: var(--success-bg); color: var(--success); }
+    .tag-red   { background: var(--danger-bg);  color: var(--danger);  }
+
+    .dot-live { width: 6px; height: 6px; border-radius: 50%; background: var(--success); display: inline-block; }
+
+    @media (max-width: 600px) {
+        .topbar { padding: 0 var(--s5); }
+        .hero { padding: var(--s9) var(--s5) var(--s7); }
+        .hero-title { font-size: 28px; }
+        .hero-metrics { gap: var(--s7); }
+        .workspace { padding: 0 var(--s5) var(--s9); }
+        .workspace-header { padding: var(--s5) 0 var(--s4); }
+    }
+
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     TOPBAR
+═══════════════════════════════════════ -->
+<header class="topbar">
+    <a href="#hero" class="topbar-brand">
+        <span class="brand-mark">SK</span>
+        SAKK
+    </a>
+    <div class="topbar-right">
+        <!-- Theme switch -->
+        <label class="switch" title="Toggle theme" aria-label="Toggle dark mode">
+            <input type="checkbox" id="themeSwitch">
+            <span class="switch-track"></span>
+            <span class="switch-thumb"></span>
+        </label>
+
+        <div class="topbar-user" id="topbarUser">
+            <span class="dot"></span>
+            <span id="topbarUsername"></span>
+        </div>
+        <button class="btn btn-secondary" id="loginBtn" onclick="openModal()">Sign In</button>
+        <button class="btn btn-ghost"     id="logoutBtn" style="display:none;" onclick="doLogout()">Sign Out</button>
+    </div>
+</header>
+
+
+<!-- ═══════════════════════════════════════
+     HERO
+═══════════════════════════════════════ -->
+<section id="hero">
+    <div class="hero">
+        <span class="hero-kicker">Document Integrity Platform</span>
+
+        <h1 class="hero-title">
+            Cryptographic certification.<br>Zero server retention.
+        </h1>
+        <p class="hero-desc">
+            SAKK issues ECDSA-signed certificates for any document, embeds a verifiable QR seal,
+            and logs every operation to an immutable SQLite audit ledger—without storing a single byte of your files.
+        </p>
+
+        <div class="hero-metrics">
+            <div>
+                <span class="metric-val">&lt;&nbsp;15ms</span>
+                <span class="metric-key">Signing latency</span>
+            </div>
+            <div>
+                <span class="metric-val">0&nbsp;B</span>
+                <span class="metric-key">Files retained</span>
+            </div>
+            <div>
+                <span class="metric-val">secp256r1</span>
+                <span class="metric-key">Key curve</span>
+            </div>
+            <div>
+                <span class="metric-val">SHA-256</span>
+                <span class="metric-key">Hash function</span>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            <a href="#workspace" class="btn btn-primary btn-lg">Open Workspace</a>
+            <a href="#audit"     class="btn btn-secondary btn-lg">View Audit Log</a>
+        </div>
+    </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════
+     WORKSPACE
+═══════════════════════════════════════ -->
+<section id="workspace">
+    <div class="workspace">
+        <div class="workspace-header">
+            <h2>Workspace</h2>
+            <span class="tag tag-blue"><span class="dot-live"></span> Live</span>
+        </div>
+
+        <div class="panel-grid">
+
+            <!-- ── PANEL 1: Issue Certificate ───────────── -->
+            <div class="panel" id="issuePanel">
+                <div class="lock-overlay" id="issueLock">
+                    <svg class="lock-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <p class="lock-msg">Authentication required<br>to issue certificates.</p>
+                    <button class="btn btn-primary" onclick="openModal()">Sign In</button>
+                </div>
+
+                <div class="panel-header">
+                    <div class="panel-eyebrow">Issue</div>
+                    <div class="panel-title">Issue Certificate</div>
+                </div>
+
+                <form id="signForm" novalidate>
+                    <div class="dropzone" id="signDrop">
+                        <input type="file" id="signFile" required>
+                        <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <div class="dropzone-text">Drop file or click to select<br><span style="color:var(--txt-3);font-size:10px;">PDF, image, or any document — not stored server-side</span></div>
+                        <div class="dropzone-filename" id="signFilename"></div>
+                    </div>
+
+                    <div class="pdf-hint" id="pdfHint">
+                        Drag the QR badge to your preferred position, then click Issue.
+                    </div>
+                    <div class="pdf-preview-wrap" id="pdfPreview">
+                        <canvas id="pdfCanvas"></canvas>
+                        <div id="qrBadge"></div>
+                    </div>
+
+                    <div class="loader" id="signLoader">
+                        <div class="loader-ring"></div>
+                        <span class="loader-text">Signing document...</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full btn-lg" id="signSubmit">Issue Certificate</button>
+                </form>
+
+                <div class="result" id="signResult">
+                    <div class="alert alert-success">
+                        <svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        Certificate issued. ECDSA signature verified.
+                    </div>
+
+                    <div class="qr-output">
+                        <img id="qrImg" src="" alt="QR seal">
+                        <div class="qr-actions">
+                            <a id="dlQr"  class="btn btn-secondary" href="#" download="SAKK-seal.png">Download QR</a>
+                            <a id="dlPdf" class="btn btn-secondary" href="#" style="display:none;" download="SAKK-stamped.pdf">Download PDF</a>
+                        </div>
+                    </div>
+
+                    <table class="data-table">
+                        <tr><td>Hash</td><td><div class="copy-row"><span class="mono-val" id="rHash"></span><button class="btn-copy" onclick="cp('rHash')">Copy</button></div></td></tr>
+                        <tr><td>Signature</td><td><div class="copy-row"><span class="mono-val" id="rSig"></span><button class="btn-copy" onclick="cp('rSig')">Copy</button></div></td></tr>
+                        <tr><td>Issued at</td><td><span id="rTs" style="font-family:var(--font-mono);font-size:11px;color:var(--txt-2);"></span></td></tr>
+                    </table>
+
+                    <p style="font-size:10px;color:var(--txt-3);margin-top:var(--s4);line-height:1.6;">
+                        Note: The hash above represents the <em>original</em> file before stamping. Use the QR scanner to verify a stamped PDF.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ── PANEL 2: Verify File ───────────────── -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-eyebrow">Verify</div>
+                    <div class="panel-title">Verify Document Integrity</div>
+                </div>
+
+                <form id="verifyForm" novalidate>
+                    <div class="dropzone" id="verifyDrop">
+                        <input type="file" id="verifyFile" required>
+                        <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <div class="dropzone-text">Drop the original document here</div>
+                        <div class="dropzone-filename" id="verifyFilename"></div>
+                    </div>
+
+                    <div class="field">
+                        <label>ECDSA Signature</label>
+                        <textarea class="sig-field" id="verifySig" placeholder="Paste base64-encoded signature..." required></textarea>
+                    </div>
+
+                    <label class="field-check">
+                        <input type="checkbox" id="tamper">
+                        <span>Simulate tampering <span class="check-warn">(injects payload to test detection)</span></span>
+                    </label>
+
+                    <div class="loader" id="verifyLoader">
+                        <div class="loader-ring"></div>
+                        <span class="loader-text">Verifying signature...</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full" id="verifySubmit">Verify</button>
+                </form>
+
+                <div class="result" id="verifyResult">
+                    <div class="alert" id="verifyAlert"></div>
+                    <table class="data-table">
+                        <tr><td>Hash</td><td><span id="vHash" style="font-family:var(--font-mono);font-size:11px;"></span></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ── PANEL 3: QR / Seal Verify ─────────── -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-eyebrow">Scan</div>
+                    <div class="panel-title">Verify Cryptographic Seal</div>
+                </div>
+
+                <form id="qrForm" novalidate>
+                    <div class="dropzone" id="qrDrop">
+                        <input type="file" id="qrFile" accept="image/*,.pdf" required>
+                        <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+                        <div class="dropzone-text">Drop a QR image or stamped PDF<br><span style="font-size:10px;color:var(--txt-3);">PNG / JPG / PDF — all formats supported</span></div>
+                        <div class="dropzone-filename" id="qrFilename"></div>
+                    </div>
+
+                    <div class="loader" id="qrLoader">
+                        <div class="loader-ring"></div>
+                        <span class="loader-text">Decoding seal...</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full" id="qrSubmit">Scan &amp; Verify</button>
+                </form>
+
+                <div class="result" id="qrResult">
+                    <div class="alert" id="qrAlert"></div>
+                    <table class="data-table">
+                        <tr><td>File</td>     <td><span id="qrFile2" style="font-size:12px;"></span></td></tr>
+                        <tr><td>Issued</td>   <td><span id="qrTs"   style="font-family:var(--font-mono);font-size:11px;"></span></td></tr>
+                        <tr><td>Hash</td>     <td><span id="qrHash2" style="font-family:var(--font-mono);font-size:10px;word-break:break-all;"></span></td></tr>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /.panel-grid -->
+
+
+        <!-- ═══════════════════════════════
+             AUDIT TRAIL
+        ═══════════════════════════════ -->
+        <hr class="divider">
+
+        <div class="audit-panel" id="audit">
+            <div class="audit-toolbar">
+                <div>
+                    <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Audit Trail</div>
+                    <div style="font-size:11px;color:var(--txt-3);">SQLite — last 15 records</div>
+                </div>
+                <button class="btn btn-secondary" onclick="loadLogs()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+                    Refresh
+                </button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="audit-tbl" id="auditTbl">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;">#</th>
+                            <th>File</th>
+                            <th>SHA-256 (truncated)</th>
+                            <th>Signature</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /.workspace -->
+</section>
+
+
+<!-- ═══════════════════════════════════════
+     MODAL (Auth)
+═══════════════════════════════════════ -->
+<div class="modal-backdrop" id="authModal">
+    <div class="modal">
+        <div class="modal-header">
+            <button class="modal-close" onclick="closeModal()" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div class="modal-title">Administrator Sign In</div>
+            <div class="modal-sub">Access is restricted to authorized certificate issuers.</div>
+        </div>
+
+        <form id="authForm" novalidate>
+            <div class="field">
+                <label>Operator ID</label>
+                <input type="text" id="authUser" value="admin" required dir="ltr">
+            </div>
+            <div class="field">
+                <label>Access Code</label>
+                <input type="password" id="authPass" value="admin123" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Authenticate</button>
+            <div class="modal-error" id="authError">Invalid credentials. Access denied.</div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════ -->
+<script>
+(function () {
+    'use strict';
+
+    /* ── pdf.js ─────────────────────────── */
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    /* ── refs ───────────────────────────── */
+    const $ = id => document.getElementById(id);
+
+    const pdfCanvas    = $('pdfCanvas');
+    const qrBadge      = $('qrBadge');
+    const pdfPreview   = $('pdfPreview');
+    const pdfHint      = $('pdfHint');
+
+    let isPdf = false;
+    let drag  = { active: false, ox: 0, oy: 0 };
+
+    /* ── theme ──────────────────────────── */
+    const THEME_KEY = 'sakk-theme';
+    const sw        = $('themeSwitch');
+
+    function applyTheme(dark) {
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        sw.checked = !dark; // checked = light
+        localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+    }
+
+    (function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        if (saved) { applyTheme(saved === 'dark'); return; }
+        applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    })();
+
+    sw.addEventListener('change', () => applyTheme(!sw.checked));
+
+    /* ── drag & drop for qrBadge ────────── */
+    qrBadge.addEventListener('mousedown', e => {
+        const r = qrBadge.getBoundingClientRect();
+        // skip resize handle (bottom-right 20px corner)
+        if (e.clientX > r.right - 20 && e.clientY > r.bottom - 20) return;
+        drag = { active: true, ox: e.clientX - qrBadge.offsetLeft, oy: e.clientY - qrBadge.offsetTop };
+        qrBadge.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+        if (!drag.active) return;
+        const pw = pdfPreview.clientWidth;
+        const ph = pdfPreview.clientHeight;
+        let x = e.clientX - drag.ox;
+        let y = e.clientY - drag.oy;
+        x = Math.max(0, Math.min(x, pw - qrBadge.offsetWidth));
+        y = Math.max(0, Math.min(y, ph - qrBadge.offsetHeight));
+        qrBadge.style.left = x + 'px';
+        qrBadge.style.top  = y + 'px';
+    });
+    window.addEventListener('mouseup', () => {
+        drag.active = false;
+        qrBadge.style.cursor = '';
+    });
+
+    /* ── dropzone setup ─────────────────── */
+    function setupDrop(inputId, filenameId, zoneId, onSelect) {
+        const inp  = $(inputId);
+        const fn   = $(filenameId);
+        const zone = $(zoneId);
+
+        function handleFile(file) {
+            if (!file) { fn.textContent = ''; zone.style.borderColor = ''; return; }
+            fn.textContent = file.name;
+            zone.style.borderColor = 'var(--accent)';
+            if (onSelect) onSelect(file);
+        }
+
+        inp.addEventListener('change', e => handleFile(e.target.files[0]));
+
+        ['dragenter','dragover','dragleave','drop'].forEach(ev =>
+            zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
+        );
+        ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, () => zone.classList.add('dragover')));
+        ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, () => zone.classList.remove('dragover')));
+        zone.addEventListener('drop', e => {
+            const f = e.dataTransfer.files[0];
+            if (!f) return;
+            const dt = new DataTransfer(); dt.items.add(f);
+            inp.files = dt.files; handleFile(f);
+        });
+    }
+
+    /* setup sign drop (renders PDF preview if PDF) */
+    setupDrop('signFile', 'signFilename', 'signDrop', async (file) => {
+        if (file.type === 'application/pdf') {
+            isPdf = true;
+            pdfHint.style.display    = 'block';
+            pdfPreview.style.display = 'block';
+            const ab  = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+            const pg  = await pdf.getPage(1);
+            const vp  = pg.getViewport({ scale: 1.4 });
+            pdfCanvas.width  = vp.width;
+            pdfCanvas.height = vp.height;
+            await pg.render({ canvasContext: pdfCanvas.getContext('2d'), viewport: vp }).promise;
+            qrBadge.style.left = '12px'; qrBadge.style.top = '12px';
+            qrBadge.style.width = '88px'; qrBadge.style.height = '88px';
+        } else {
+            isPdf = false;
+            pdfHint.style.display    = 'none';
+            pdfPreview.style.display = 'none';
+        }
+    });
+
+    setupDrop('verifyFile', 'verifyFilename', 'verifyDrop', null);
+    setupDrop('qrFile',     'qrFilename',     'qrDrop',     null);
+
+    /* ── helpers ────────────────────────── */
+    function setLoader(id, on) { $(id).classList.toggle('show', on); }
+    function showResult(id)    { $(id).classList.add('show'); }
+    function hideResult(id)    { $(id).classList.remove('show'); }
+
+    function setAlert(id, type, msg) {
+        const el = $(id);
+        el.className = 'alert alert-' + type;
+        el.innerHTML = iconFor(type) + msg;
+    }
+
+    function iconFor(type) {
+        const icons = {
+            success: '<svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+            danger:  '<svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+            info:    '<svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+        };
+        return icons[type] || '';
+    }
+
+    window.cp = function(id) {
+        const txt = $(id).textContent;
+        navigator.clipboard.writeText(txt).then(() => {
+            const el = $(id).parentElement.querySelector('.btn-copy');
+            const prev = el.textContent; el.textContent = 'Copied';
+            setTimeout(() => el.textContent = prev, 1500);
+        });
+    };
+
+    /* ── auth ───────────────────────────── */
+    async function checkAuth() {
+        try {
+            const d = await (await fetch('/api/me')).json();
+            if (d.logged_in) {
+                $('issueLock').style.display = 'none';
+                $('loginBtn').style.display  = 'none';
+                $('logoutBtn').style.display = 'inline-flex';
+                $('topbarUser').style.display = 'flex';
+                $('topbarUsername').textContent = d.username;
+            } else {
+                $('issueLock').style.display = 'flex';
+                $('loginBtn').style.display  = 'inline-flex';
+                $('logoutBtn').style.display = 'none';
+                $('topbarUser').style.display = 'none';
+            }
+        } catch (_) {}
+    }
+
+    window.openModal  = () => $('authModal').classList.add('open');
+    window.closeModal = () => { $('authModal').classList.remove('open'); $('authError').style.display = 'none'; };
+
+    $('authModal').addEventListener('click', e => {
+        if (e.target === $('authModal')) closeModal();
+    });
+
+    $('authForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const res = await fetch('/api/login', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username: $('authUser').value, password: $('authPass').value })
+        });
+        const d = await res.json();
+        if (d.success) { closeModal(); checkAuth(); }
+        else           { $('authError').style.display = 'block'; }
+    });
+
+    window.doLogout = async () => {
+        await fetch('/api/logout', { method: 'POST' });
+        checkAuth();
+    };
+
+    /* ── sign/issue ─────────────────────── */
+    $('signForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const file = $('signFile').files[0];
+        if (!file) return;
+
+        $('signSubmit').disabled = true;
+        setLoader('signLoader', true);
+        hideResult('signResult');
+
+        const fd = new FormData();
+        fd.append('file', file);
+        if (isPdf) {
+            fd.append('stamp_pdf', 'true');
+            fd.append('x_pct',    qrBadge.offsetLeft   / pdfPreview.clientWidth);
+            fd.append('y_pct',    qrBadge.offsetTop    / pdfPreview.clientHeight);
+            fd.append('size_pct', qrBadge.offsetWidth  / pdfPreview.clientWidth);
+        }
+
+        try {
+            const res = await fetch('/api/sign', { method: 'POST', body: fd });
+            if (res.status === 401) { openModal(); return; }
+            const d = await res.json();
+            if (d.error) { alert(d.error); return; }
+
+            $('rHash').textContent = d.hash;
+            $('rSig').textContent  = d.signature;
+            $('rTs').textContent   = d.timestamp;
+            $('qrImg').src         = d.qr_image;
+            $('dlQr').href         = d.qr_image;
+
+            if (d.stamped_pdf) {
+                const a = $('dlPdf');
+                a.style.display = 'inline-flex';
+                a.href          = 'data:application/pdf;base64,' + d.stamped_pdf;
+                a.download      = 'SAKK-stamped-' + file.name;
+            } else {
+                $('dlPdf').style.display = 'none';
+            }
+
+            showResult('signResult');
+            loadLogs();
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            $('signSubmit').disabled = false;
+            setLoader('signLoader', false);
+        }
+    });
+
+    /* ── verify file ────────────────────── */
+    $('verifyForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const file = $('verifyFile').files[0];
+        const sig  = $('verifySig').value.trim();
+        if (!file || !sig) return;
+
+        $('verifySubmit').disabled = true;
+        setLoader('verifyLoader', true);
+        hideResult('verifyResult');
+
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('signature', sig);
+        fd.append('tamper', $('tamper').checked);
+
+        try {
+            const d = await (await fetch('/api/verify', { method: 'POST', body: fd })).json();
+            if (d.valid) {
+                setAlert('verifyAlert', 'success', 'Signature valid. Document integrity confirmed.');
+            } else {
+                setAlert('verifyAlert', 'danger', 'Signature mismatch. Document may have been tampered with.');
+            }
+            $('vHash').textContent = d.hash;
+            showResult('verifyResult');
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            $('verifySubmit').disabled = false;
+            setLoader('verifyLoader', false);
+        }
+    });
+
+    /* ── verify qr/pdf seal ─────────────── */
+    $('qrForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const file = $('qrFile').files[0];
+        if (!file) return;
+
+        $('qrSubmit').disabled = true;
+        setLoader('qrLoader', true);
+        hideResult('qrResult');
+
+        const fd = new FormData(); fd.append('file', file);
+
+        try {
+            const res = await fetch('/api/verify-qr', { method: 'POST', body: fd });
+            const d   = await res.json();
+
+            if (res.status !== 200) {
+                setAlert('qrAlert', 'danger', d.error || 'Failed to decode seal.');
+                $('qrFile2').textContent = 'N/A';
+                $('qrTs').textContent    = 'N/A';
+                $('qrHash2').textContent = 'N/A';
+            } else if (d.valid) {
+                setAlert('qrAlert', 'success', 'Seal is authentic. Cryptographic signature verified.');
+                $('qrFile2').textContent = d.payload.filename;
+                $('qrTs').textContent    = d.payload.timestamp;
+                $('qrHash2').textContent = d.payload.hash;
+            } else {
+                setAlert('qrAlert', 'danger', 'Seal signature is invalid. Document or seal may be forged.');
+                $('qrFile2').textContent = d.payload?.filename  || '—';
+                $('qrTs').textContent    = d.payload?.timestamp || '—';
+                $('qrHash2').textContent = d.payload?.hash      || '—';
+            }
+            showResult('qrResult');
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            $('qrSubmit').disabled = false;
+            setLoader('qrLoader', false);
+        }
+    });
+
+    /* ── audit log ──────────────────────── */
+    window.loadLogs = async function () {
+        const tbody = $('auditBody');
+
+        // shimmer rows
+        tbody.innerHTML = [1,2,3].map(() => `
+            <tr class="tbl-shimmer">
+                <td><div class="shimmer" style="width:24px;"></div></td>
+                <td><div class="shimmer" style="width:120px;"></div></td>
+                <td><div class="shimmer" style="width:160px;"></div></td>
+                <td><div class="shimmer" style="width:140px;"></div></td>
+                <td><div class="shimmer" style="width:110px;"></div></td>
+            </tr>`).join('');
+
+        try {
+            const logs = await (await fetch('/api/logs')).json();
+            tbody.innerHTML = '';
+            if (!logs.length) {
+                tbody.innerHTML = `<tr><td colspan="5"><div class="tbl-empty">No records yet.</div></td></tr>`;
+                return;
+            }
+            logs.forEach((log, i) => {
+                const tr = document.createElement('tr');
+                tr.style.animationDelay = (i * 40) + 'ms';
+                tr.innerHTML = `
+                    <td class="id">${log.id}</td>
+                    <td dir="auto" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(log.filename)}</td>
+                    <td class="mono">${log.hash.slice(0, 20)}&hellip;</td>
+                    <td class="mono">${log.signature}</td>
+                    <td class="mono">${log.timestamp}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (_) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger);font-size:12px;padding:var(--s7);">Failed to load records.</td></tr>`;
+        }
+    };
+
+    function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str; return d.innerHTML;
+    }
+
+    /* ── init ───────────────────────────── */
+    checkAuth();
+    loadLogs();
+
+}());
+</script>
+
+</body>
+</html>
