@@ -1,152 +1,97 @@
 <div align="center">
 
-# 🛡️ صَــكّ | SAKK
-### *Next-Gen Zero-Retention Cryptographic Document Integrity & Certification Platform*
+# 🛡️ SAKK
+### Decentralized Cryptographic Document Verification Platform
+> **Zero-Retention, Tamper-Proof Document Authentication for Digital Governments.**
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Flask](https://img.shields.io/badge/Flask-2.0%2B-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![ECDSA](https://img.shields.io/badge/Cryptography-ECDSA%20SECP256R1-4CAF50?style=for-the-badge&logo=security&logoColor=white)](#cryptographic-architecture)
-[![License](https://img.shields.io/badge/Compliance-PDPL%20%2F%20GDPR-blue?style=for-the-badge)](#privacy--compliance)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)](#deployment)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Framework-Flask-black.svg)](https://flask.palletsprojects.com/)
+[![Security](https://img.shields.io/badge/Cryptography-ECDSA_SECP256R1-success.svg)](#)
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](#)
 
-<p align="center">
-  <b>منصة توثيق وحماية الوثائق الرقمية بتقنيات التشفير اللامركزي، ومطابقة النزاهة دون الاحتفاظ بالبيانات الحساسة.</b>
-</p>
-
-[🌐 Live Production](https://sakk.site) • [✨ المميزات](#-المميزات-الرئيسية-key-features) • [🔐 النموذج الأمني](#-النموذج-الأمني-security-architecture) • [🚀 التشغيل السريع](#-التشغيل-السريع-quick-start) • [📡 الـ API](#-توثيق-الـ-api)
-
----
+*An elite submission for the **Global SAFE Security and Innovation Competition** (Digital Government Solutions Track).*
 
 </div>
 
-## 🌟 نظرة عامة (Overview)
+---
 
-**صَكّ (SAKK)** هي منظومة أمنية متكاملة مصممة لسد الفجوة بين سرية الوثائق والقدرة على إثبات أصالتها ونزاهتها. تستخدم المنصة خوارزميات المنحنيات الإهليلجية المتقدمة (**ECDSA SECP256R1**) لتوقيع البصمة الرقمية للوثائق وختمها بأختام QR تفاعلية، مع الالتزام التام بمبدأ **انعدام الاحتفاظ بالبيانات (Zero-Retention)** لضمان الامتثال الصارم لنظام حماية البيانات الشخصية السعودي (PDPL) والمعايير العالمية (GDPR).
+## 🌟 Overview
+**SAKK** is a state-of-the-art cryptographic document verification platform designed for sovereign digital governance. 
+
+In an era where document forgery (land deeds, security clearances, academic certificates) poses severe national security and economic threats, SAKK provides mathematical certainty. Using advanced **ECDSA (SECP256R1)** elliptic-curve cryptography combined with a strict **Zero-Retention architecture**, SAKK guarantees absolute document integrity without ever storing sensitive data on centralized servers.
+
+## 🚀 Why SAKK? (The Competitive Edge)
+* 🔐 **Zero-Retention Privacy:** We don't store the documents. We don't store the metadata. The data is cryptographically sealed directly into the physical/digital QR code. Absolute compliance with strict data protection laws (e.g., PDPL, GDPR).
+* 🛡️ **Cryptographic Tamper Detection:** If a malicious actor alters a single pixel, date, or character in the document, the cryptographic hash breaks, and the system instantly rejects the document.
+* ⚡ **Decentralized Inter-Agency Verification:** A bank or foreign embassy can instantly verify a government-issued document using only the public key. No complex API integrations or access to sensitive internal databases is required.
+* 📄 **Multi-Page Intelligent Scanning:** Built-in AI/Computer Vision pipeline using `PyMuPDF` and `OpenCV` to automatically hunt and decode secure QR seals across large, multi-page PDFs.
+* 🪄 **Transparent Aesthetic Seals:** Generates transparent, elegant QR codes that blend seamlessly into official documents without ruining their sovereign aesthetic.
+* 📱 **Multi-Engine Decoding Pipeline:** Engineered with a highly robust fallback chain (`pyzbar` → `cv2.wechat_qrcode` → `cv2.QRCodeDetector`) ensuring flawless scanning even on low-quality physical prints or dense digital codes.
 
 ---
 
-## ⚡ المميزات الرئيسية (Key Features)
+## 🏗️ System Architecture & Workflow
 
-- 🔒 **تشفير بالمنحنيات الإهليلجية (ECDSA SECP256R1):** توقيع رقمي لا يمكن تزويره أو استنساخه رياضياً.
-- 🚫 **انعدام الاحتفاظ بالبيانات (Zero-Data Retention):** لا يتم رفع المستندات إلى السيرفر؛ المعالجة وحساب الهاش `SHA-256` تتم لحظياً دون تخزين أي نسخة من الملف الأصلي.
-- 📑 **ختم إلكتروني ديناميكي (Dynamic Cryptographic Stamping):** حقن مباشر لرمز QR مشفر وموقّع في تذييل ملفات الـ PDF يربط الوثيقة ببصمتها دون تشويه المحتوى.
-- 📷 **ماسح ضوئي حي بالكاميرا (Live Browser Camera QR Scanner):** فحص الأختام والتحقق من صحة المستندات فورياً باستخدام كاميرا الهاتف أو الحاسب دون أي تطبيق خارجي.
-- 👤 **إدارة حسابات وجلسات آمنة:** تسجيل مستخدمين مع تشفير كلمات المرور وسجل عمليات منفصل ومحمي لكل مستخدم.
-- 📋 **سجل تدقيق شفاف (Cryptographic Audit Trail):** متابعة جميع عمليات التوثيق وتاريخها وتفاصيل بصماتها بدقة متناهية.
-- 🌐 **تصميم فائق الفخامة (Cyberpunk / Slate Design):** واجهة مستخدم مبهرة تدعم التجاوب الكامل، مستوحاة من أحدث معايير الأمان السيبراني العالمية.
+### 1. Issuance (The Cryptographic Binding)
+1. **Hash Generation:** The system calculates a mathematically irreversible SHA-256 hash of the raw document.
+2. **Dynamic Metadata:** Custom key-value pairs (e.g., `Issuer: Ministry of Interior`, `Clearance Level: Top Secret`) are canonically sorted and appended.
+3. **ECDSA Signature:** The server signs the entire payload using its highly secure Elliptic Curve Private Key.
+4. **Seal Creation:** A transparent QR code is generated containing the payload, hash, and signature, and is embedded into the document.
 
----
-
-## 🔐 النموذج الأمني (Security Architecture)
-
-```mermaid
-flowchart TD
-    A[📄 المستند الأصلي] -->|SHA-256 Hashing| B(بصمة الوثيقة File Hash)
-    B -->|توقيع بالمفتاح الخاص ECDSA Private Key| C[🔏 التوقيع الرقمي Signature]
-    C --> D[🔳 توليد الختم الرقمي QR Stamp]
-    D -->|حقن في الـ PDF| E[📜 صك الوثيقة الموثقة]
-    
-    subgraph التحقق Verification
-    E -->|مسح بالكاميرا / قراءة الهاش| F[🔍 استخراج الهاش والتوقيع]
-    F -->|مطابقة بالمفتاح العام Public Key| G{هل التوقيع مطابق وموثوق؟}
-    G -->|نعم| H[✅ الوثيقة أصلية وسليمة 100%]
-    G -->|تعديل بأي بايت واحد| I[❌ تحذير: الوثيقة مزورة أو تم التلاعب بها]
-    end
-```
-
-### المقارنة الأمنية:
-| المعيار | الطرق التقليدية | منصة صَـكّ (SAKK) |
-| :--- | :--- | :--- |
-| **تخزين المستندات** | تُخزن في قواعد بيانات معرضة للاختراق | **صفر تخزين (Zero Retention)** |
-| **قوة التشفير** | توقيعات نصية أو MD5 / SHA1 قديمة | **ECDSA SECP256R1 + SHA-256** |
-| **التحقق من التلاعب** | يتطلب مراجعة بشرية | **كشف آلي لأي تغيير ولو في حرف واحد** |
-| **سرعة التحقق** | أيام أو ساعات | **فوري (أقل من ثانية عبر الكاميرا)** |
+### 2. Verification (Zero-Trust Proof)
+1. **Upload:** A third party uploads the document to the portal.
+2. **Extraction:** The system scans the document, finds the QR code, and extracts the payload and signature.
+3. **Re-Hashing:** The system re-hashes the uploaded file (excluding the QR region) and compares it to the payload.
+4. **Mathematical Verification:** The system uses the Issuer's Public Key to cryptographically verify that the signature was indeed created by the trusted authority and hasn't been tampered with.
 
 ---
 
-## 🛠️ البنية التقنية (Tech Stack)
-
-* **Backend:** Python 3.10+, Flask, Cryptography (ECDSA), PyMuPDF (fitz), SQLite3.
-* **Frontend:** Vanilla HTML5, CSS3 Tokens (Slate & Cyberpunk Palette), Vanilla ES6+ JavaScript.
-* **Client-side QR:** [jsQR](https://github.com/cozmo/jsQR) لمسح الكاميرا في الوقت الحقيقي.
-* **Production Stack:** Nginx Reverse Proxy, Gunicorn WSGI Server, Systemd Daemon, Let's Encrypt SSL.
+## 🛠️ Technology Stack
+| Component | Technology |
+|---|---|
+| **Backend Framework** | Python 3.10+, Flask |
+| **Cryptography** | `cryptography` (SECP256R1, SHA-256) |
+| **Document Processing** | `PyMuPDF` (fitz), `Pillow` (PIL) |
+| **Computer Vision** | `OpenCV` (cv2), `pyzbar` |
+| **Frontend UI/UX** | HTML5, CSS3 (Glassmorphism), Vanilla JS |
+| **Database** | SQLite (Strictly for Audit Logs & Public Keys) |
 
 ---
 
-## 🚀 التشغيل السريع (Quick Start)
+## ⚙️ Quick Start Guide
 
-### 1. المتطلبات الأولية (Prerequisites)
-تأكد من تثبيت Python 3.10 أو أحدث:
+### Prerequisites
+- Python 3.10+
+- Git
+
+### Installation
 ```bash
-python --version
-```
+# 1. Clone the repository
+git clone https://github.com/your-username/sakk.git
+cd sakk
 
-### 2. التثبيت والتشغيل المحلي (Local Setup)
-
-```bash
-# 1. الدخول لمجلد المشروع
-cd sakk3
-
-# 2. إنشاء وتفعيل البيئة الافتراضية
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Linux / Mac:
-source venv/bin/activate
-
-# 3. تثبيت الحزم المطلوبة
+# 2. Install required dependencies
 pip install -r requirements.txt
 
-# 4. تشغيل السيرفر المحلي
+# 3. Run the application
 python app.py
 ```
 
-افتح المتصفح وتوجه إلى: `http://localhost:5000`
+### ⚠️ Critical Security Notice
+The system will automatically generate a highly secure `private_key.pem` upon first launch. 
+**NEVER commit this file to GitHub!** Make sure your `.gitignore` is properly configured to exclude `*.pem` and `sakk.db` files.
 
 ---
 
-## 📡 توثيق الـ API (API Endpoints)
-
-| المسار | الطريقة | الوصف |
-| :--- | :--- | :--- |
-| `/api/register` | `POST` | إنشاء حساب مستخدم جديد وتشفير بياناته |
-| `/api/login` | `POST` | تسجيل الدخول وبدء جلسة آمنة |
-| `/api/me` | `GET` | التحقق من المستخدم الحالي وحالة الجلسة |
-| `/api/sign` | `POST` | حساب البصمة وتوقيع المستند بـ ECDSA وإرجاع ملف PDF مختوم |
-| `/api/verify` | `POST` | التحقق من نزاهة ملف مرفوع بمطابقة بصمته مع التوقيع |
-| `/api/verify-qr` | `POST` | فك وتدقيق كود الـ QR المستخرج من الكاميرا |
-| `/api/logs` | `GET` | جلب سجل العمليات الخاصة بالمستخدم المسجل |
-| `/api/public-key`| `GET` | الحصول على المفتاح العام للمنظومة بصيغة PEM للتحقق المستقل |
+## 🏆 Global SAFE Competition Profile
+* **Track:** Digital Government Solutions
+* **Value Proposition:** 
+  * Eradicates physical and digital document forgery.
+  * Eliminates centralized "honeypot" data breaches by removing the need to store sensitive document metadata.
+  * Rapid deployment for any government entity seeking immediate cryptographic security.
 
 ---
-
-## 🌐 النشر على سيرفر الإنتاج (Production Deployment)
-
-تم إعداد المشروع ليعمل على سيرفرات **Ubuntu / Debian VPS** بكفاءة عالية:
-
-```bash
-# مسار التطبيق على السيرفر
-cd /var/www/sakk
-
-# تشغيل بيئة العمل وتحديث المتطلبات
-source venv/bin/activate
-pip install -r requirements.txt
-
-# إدارة خدمة التطبيق عبر Systemd
-sudo systemctl restart sakk
-sudo systemctl status sakk
-
-# فحص Nginx وشهادة الأمان SSL
-sudo nginx -t
-sudo systemctl restart nginx
-```
-
----
-
 <div align="center">
-
-صُممت المنظومة بمعايير سيبرانية متقدمة لحماية خصوصية وأصالة المستندات في العصر الرقمي.
-
-**SAKK Platform © 2026 — Document Integrity Redefined.**
-
+<i>Built with passion for a safer, trustless digital future.</i><br>
+<b>Global SAFE Security and Innovation Competition</b>
 </div>
